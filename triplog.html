@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Triplog">
+<meta name="theme-color" content="#0f1923">
+<title>Triplog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #0f1923;
+  --bg2: #162030;
+  --bg3: #1e2d3d;
+  --bg4: #243447;
+  --card: #1a2840;
+  --border: #2a3f57;
+  --accent: #3b9eff;
+  --accent2: #00c9a7;
+  --local: #00c9a7;
+  --intl: #3b9eff;
+  --warn: #ffb340;
+  --danger: #ff5a5a;
+  --text: #e8f0fe;
+  --text2: #8ba4c0;
+  --text3: #4d6a84;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --font-display: 'Fraunces', serif;
+  --font-body: 'DM Sans', sans-serif;
+  --tab-h: 72px;
+  --header-h: 60px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.5}
+button{font-family:var(--font-body);cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:var(--font-body);color:var(--text);background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;width:100%;outline:none;font-size:15px;transition:border .2s}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+select option{background:var(--bg3)}
+textarea{resize:vertical;min-height:80px}
+a{color:var(--accent);text-decoration:none}
+
+/* ── LAYOUT ── */
+#app{display:flex;flex-direction:column;height:100%;position:relative;overflow:hidden}
+#header{height:var(--header-h);display:flex;align-items:center;padding:0 16px;gap:10px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;z-index:50;position:relative}
+#header h1{font-family:var(--font-display);font-weight:600;font-size:1.4rem;letter-spacing:-.02em;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;flex:1}
+#header .sync-badge{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px}
+#header .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--accent2)}
+#header .sync-dot.offline{background:var(--warn)}
+#content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--tab-h) + var(--safe-bottom) + 16px)}
+#tabs{height:calc(var(--tab-h) + var(--safe-bottom));padding-bottom:var(--safe-bottom);display:flex;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;z-index:50}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:500;color:var(--text3);transition:color .2s}
+.tab-btn.active{color:var(--accent)}
+.tab-btn svg{width:22px;height:22px;stroke-width:1.8;transition:transform .2s}
+.tab-btn.active svg{transform:translateY(-1px)}
+.page{display:none;animation:fadeIn .25s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── AUTH ── */
+#auth-overlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
+#auth-overlay h2{font-family:var(--font-display);font-size:2.2rem;font-weight:700;margin-bottom:8px;text-align:center;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#auth-overlay p{color:var(--text2);text-align:center;margin-bottom:32px}
+.auth-box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px;display:flex;flex-direction:column;gap:14px}
+.auth-tabs{display:flex;background:var(--bg3);border-radius:var(--radius-sm);padding:3px;margin-bottom:4px}
+.auth-tab{flex:1;padding:8px;text-align:center;border-radius:8px;font-size:14px;font-weight:500;color:var(--text2);transition:all .2s;cursor:pointer}
+.auth-tab.active{background:var(--accent);color:#fff}
+.field-group{display:flex;flex-direction:column;gap:6px}
+.field-label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#1a6fd4);color:#fff;border-radius:var(--radius-sm);padding:12px;font-weight:600;font-size:15px;transition:opacity .2s;width:100%}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{background:var(--bg3);border:1.5px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:10px 16px;font-weight:500;font-size:14px}
+.btn-danger{background:linear-gradient(135deg,var(--danger),#c0392b);color:#fff;border-radius:var(--radius-sm);padding:10px 16px;font-weight:600}
+.auth-error{color:var(--danger);font-size:13px;text-align:center}
+
+/* ── PIN LOCK ── */
+#pin-overlay{position:fixed;inset:0;background:var(--bg);z-index:190;display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px}
+#pin-overlay h2{font-family:var(--font-display);font-size:1.8rem;color:var(--text)}
+.pin-dots{display:flex;gap:14px}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:background .15s}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent)}
+.pin-grid{display:grid;grid-template-columns:repeat(3,80px);gap:12px}
+.pin-key{height:60px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--border);font-size:20px;font-weight:600;transition:background .15s}
+.pin-key:active,.pin-key:hover{background:var(--bg4)}
+
+/* ── CARDS ── */
+.section-pad{padding:16px}
+.section-title{font-family:var(--font-display);font-size:1.15rem;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.trip-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden}
+.trip-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+.trip-card.local::before{background:var(--local)}
+.trip-card.international::before{background:var(--intl)}
+.trip-card:active{transform:scale(.98)}
+.trip-card h3{font-size:1rem;font-weight:600;margin-bottom:4px;padding-left:10px}
+.trip-card .meta{font-size:12px;color:var(--text2);padding-left:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.badge.upcoming{background:rgba(59,158,255,.15);color:var(--accent)}
+.badge.ongoing{background:rgba(0,201,167,.15);color:var(--local)}
+.badge.completed{background:rgba(77,106,132,.2);color:var(--text2)}
+.badge.overdue{background:rgba(255,90,90,.15);color:var(--danger)}
+.badge.local{background:rgba(0,201,167,.12);color:var(--local)}
+.badge.intl{background:rgba(59,158,255,.12);color:var(--intl)}
+.countdown-banner{background:linear-gradient(135deg,rgba(59,158,255,.15),rgba(0,201,167,.1));border:1px solid rgba(59,158,255,.3);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px}
+.countdown-days{font-family:var(--font-display);font-size:2.5rem;font-weight:700;color:var(--accent);line-height:1}
+
+/* ── ALERT BANNER ── */
+.alert-bar{background:rgba(255,179,64,.12);border:1px solid rgba(255,179,64,.3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--warn);display:flex;align-items:center;gap:8px}
+
+/* ── FAB ── */
+.fab{position:fixed;right:20px;bottom:calc(var(--tab-h) + var(--safe-bottom) + 16px);width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#1a6fd4);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(59,158,255,.5);z-index:40;transition:transform .2s}
+.fab:active{transform:scale(.92)}
+
+/* ── SHEET (MODAL) ── */
+#sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;opacity:0;transition:opacity .3s}
+#sheet-backdrop.open{display:block;opacity:1}
+#sheet{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-radius:24px 24px 0 0;z-index:101;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+#sheet.open{transform:translateY(0)}
+.sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
+.sheet-header{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0}
+.sheet-title{font-family:var(--font-display);font-size:1.15rem;font-weight:600}
+.sheet-close{width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text2)}
+.sheet-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.sheet-footer{padding:16px 20px;padding-bottom:calc(16px + var(--safe-bottom));border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:10px}
+
+/* ── DETAIL PAGE ── */
+.detail-hero{background:linear-gradient(160deg,var(--bg3),var(--bg));padding:20px 16px 16px;border-bottom:1px solid var(--border)}
+.detail-hero h2{font-family:var(--font-display);font-size:1.6rem;font-weight:700;margin-bottom:6px}
+.detail-tabs{display:flex;background:var(--bg3);border-radius:var(--radius-sm);padding:3px;margin:12px 16px}
+.detail-tab{flex:1;padding:9px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--text2);border-radius:8px;transition:all .2s;cursor:pointer}
+.detail-tab.active{background:var(--accent);color:#fff}
+.detail-panel{display:none}
+.detail-panel.active{display:block}
+
+/* ── TIMELINE ── */
+.day-block{margin-bottom:24px}
+.day-label{font-family:var(--font-display);font-size:.95rem;font-weight:600;color:var(--text2);margin-bottom:10px;padding:0 16px;display:flex;align-items:center;justify-content:space-between}
+.event-item{display:flex;align-items:flex-start;gap:12px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border);position:relative;transition:background .15s}
+.event-item:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.event-item:last-child{border-radius:0 0 var(--radius) var(--radius);border-bottom:none}
+.event-item:only-child{border-radius:var(--radius)}
+.event-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;margin-top:2px}
+.event-icon.flight{background:rgba(59,158,255,.15)}
+.event-icon.hotel{background:rgba(0,201,167,.15)}
+.event-icon.activity{background:rgba(255,179,64,.15)}
+.event-icon.meal{background:rgba(255,107,107,.15)}
+.event-icon.transfer{background:rgba(150,100,255,.15)}
+.event-icon.note{background:rgba(100,180,100,.15)}
+.event-body{flex:1;min-width:0}
+.event-time{font-size:11px;color:var(--text3);font-weight:600;margin-bottom:2px}
+.event-title{font-size:14px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.event-loc{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.event-actions{display:flex;gap:6px;align-items:center}
+.icon-btn{width:30px;height:30px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text2);flex-shrink:0}
+
+/* ── BUDGET ── */
+.budget-summary{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.budget-big{font-family:var(--font-display);font-size:2rem;font-weight:700;color:var(--accent)}
+.budget-meta{font-size:13px;color:var(--text2);margin:4px 0 16px}
+.progress-bar{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .5s ease}
+.progress-fill.warn{background:linear-gradient(90deg,var(--warn),#e67e22)}
+.progress-fill.over{background:linear-gradient(90deg,var(--danger),#c0392b)}
+.expense-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.expense-cat{font-size:11px;font-weight:600;color:var(--text2);background:var(--bg3);padding:2px 8px;border-radius:20px}
+.expense-amount{margin-left:auto;font-weight:600;font-size:14px}
+
+/* ── DOCS ── */
+.doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.doc-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.doc-card img{width:100%;height:90px;object-fit:cover;border-radius:6px;background:var(--bg3)}
+.doc-pdf-icon{height:90px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:32px}
+.doc-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-type{font-size:11px;color:var(--text2)}
+
+/* ── REMINDERS ── */
+.reminder-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.reminder-urgency{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.reminder-urgency.overdue{background:var(--danger)}
+.reminder-urgency.soon{background:var(--warn)}
+.reminder-urgency.ok{background:var(--local)}
+
+/* ── COMPANIONS ── */
+.companion-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
+
+/* ── SEARCH ── */
+.search-input-wrap{padding:12px 16px;position:sticky;top:0;background:var(--bg);z-index:10}
+.search-input-inner{position:relative}
+.search-input-inner svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+.search-input-inner input{padding-left:40px}
+.search-result{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer}
+.search-result h4{font-size:14px;font-weight:600;margin-bottom:2px}
+.search-result p{font-size:12px;color:var(--text2)}
+.search-tag{font-size:10px;font-weight:600;color:var(--accent);background:rgba(59,158,255,.1);padding:1px 6px;border-radius:10px;display:inline-block;margin-bottom:4px}
+
+/* ── SETTINGS ── */
+.settings-section{margin-bottom:24px}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.settings-row:first-child{border-radius:var(--radius) var(--radius) 0 0}
+.settings-row:last-child{border-radius:0 0 var(--radius) var(--radius);border-bottom:none}
+.settings-row:only-child{border-radius:var(--radius)}
+.settings-label{font-size:14px;font-weight:500}
+.settings-sub{font-size:12px;color:var(--text2);margin-top:2px}
+.toggle{width:44px;height:26px;border-radius:13px;background:var(--bg3);border:1.5px solid var(--border);position:relative;cursor:pointer;transition:background .2s,border-color .2s;flex-shrink:0}
+.toggle.on{background:var(--accent);border-color:var(--accent)}
+.toggle::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2px;left:2px;transition:left .2s}
+.toggle.on::after{left:20px}
+
+/* ── CALENDAR ── */
+.cal-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center}
+.cal-day-name{padding:8px 0;font-size:11px;font-weight:600;color:var(--text3)}
+.cal-day{padding:6px 2px;font-size:13px;position:relative;cursor:pointer}
+.cal-day.today{color:var(--accent);font-weight:700}
+.cal-day .dot{width:4px;height:4px;border-radius:50%;background:var(--accent);margin:0 auto;position:absolute;bottom:2px;left:50%;transform:translateX(-50%)}
+.cal-day.has-event::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--accent)}
+
+/* ── TOAST ── */
+#toast-container{position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:calc(100% - 32px);max-width:360px}
+.toast{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;font-size:14px;font-weight:500;box-shadow:var(--shadow);animation:toastIn .3s ease;display:flex;align-items:center;gap:8px}
+.toast.success{border-color:var(--local);color:var(--local)}
+.toast.error{border-color:var(--danger);color:var(--danger)}
+.toast.warn{border-color:var(--warn);color:var(--warn)}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── EMPTY STATE ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 32px;text-align:center;gap:12px}
+.empty-icon{font-size:48px;opacity:.4}
+.empty-title{font-family:var(--font-display);font-size:1.2rem;font-weight:600;color:var(--text2)}
+.empty-sub{font-size:13px;color:var(--text3);line-height:1.6}
+
+/* ── MISC ── */
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.divider{height:1px;background:var(--border);margin:4px 0}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.chip{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--bg3);border:1.5px solid var(--border);color:var(--text2);cursor:pointer;transition:all .15s}
+.chip.sel{background:rgba(59,158,255,.15);border-color:var(--accent);color:var(--accent)}
+.filter-bar{display:flex;gap:6px;padding:12px 16px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.filter-bar::-webkit-scrollbar{display:none}
+hr{border:none;border-top:1px solid var(--border);margin:8px 0}
+.text-muted{color:var(--text2);font-size:13px}
+.bold{font-weight:600}
+.danger-zone{padding:16px}
+
+/* ── EXPORT CANVAS ── */
+#export-canvas{display:none}
+
+@media(min-width:600px){
+  #content{max-width:600px;margin:0 auto}
+  #tabs{max-width:600px;margin:0 auto}
+  .fab{right:calc(50% - 280px)}
+  #sheet{max-width:600px;left:50%;transform:translateX(-50%) translateY(100%)}
+  #sheet.open{transform:translateX(-50%) translateY(0)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>Triplog</h1>
+    <div class="sync-badge">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Online</span>
+    </div>
+    <button id="user-btn" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));font-weight:700;font-size:13px;color:#fff;display:flex;align-items:center;justify-content:center" onclick="showUserMenu()">?</button>
+  </div>
+
+  <div id="content">
+    <!-- TRIPS PAGE -->
+    <div id="page-trips" class="page active">
+      <div id="alerts-bar" style="padding:0 16px;margin-top:12px"></div>
+      <div id="countdown-area" style="padding:0 16px"></div>
+      <div class="filter-bar" id="trip-filters">
+        <div class="chip sel" data-filter="all" onclick="setFilter(this,'trip')">All</div>
+        <div class="chip" data-filter="upcoming" onclick="setFilter(this,'trip')">Upcoming</div>
+        <div class="chip" data-filter="ongoing" onclick="setFilter(this,'trip')">Ongoing</div>
+        <div class="chip" data-filter="completed" onclick="setFilter(this,'trip')">Completed</div>
+        <div class="chip" data-filter="local" onclick="setFilter(this,'trip')">Local</div>
+        <div class="chip" data-filter="international" onclick="setFilter(this,'trip')">International</div>
+      </div>
+      <div id="trip-list" class="section-pad"></div>
+    </div>
+
+    <!-- CALENDAR PAGE -->
+    <div id="page-calendar" class="page">
+      <div class="cal-header">
+        <button class="icon-btn" onclick="calNav(-1)">&#8592;</button>
+        <span id="cal-title" style="font-family:var(--font-display);font-weight:600"></span>
+        <button class="icon-btn" onclick="calNav(1)">&#8594;</button>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-day-name">Su</div><div class="cal-day-name">Mo</div><div class="cal-day-name">Tu</div>
+        <div class="cal-day-name">We</div><div class="cal-day-name">Th</div><div class="cal-day-name">Fr</div><div class="cal-day-name">Sa</div>
+      </div>
+      <div class="cal-grid" id="cal-body"></div>
+      <div id="cal-events" class="section-pad"></div>
+    </div>
+
+    <!-- SEARCH PAGE -->
+    <div id="page-search" class="page">
+      <div class="search-input-wrap">
+        <div class="search-input-inner">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="search" id="search-input" placeholder="Search trips, places, events…" oninput="doSearch(this.value)">
+        </div>
+      </div>
+      <div id="search-results"></div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div id="page-settings" class="page">
+      <div class="section-pad">
+        <div class="section-title">Preferences</div>
+        <div class="settings-section">
+          <div class="settings-row">
+            <div><div class="settings-label">Default Currency</div></div>
+            <select id="setting-currency" onchange="saveSetting('currency',this.value)" style="width:90px;padding:6px 10px">
+              <option value="PHP">PHP</option><option value="USD">USD</option><option value="EUR">EUR</option>
+              <option value="JPY">JPY</option><option value="SGD">SGD</option><option value="AUD">AUD</option><option value="GBP">GBP</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">Date Format</div></div>
+            <select id="setting-dateformat" onchange="saveSetting('dateFormat',this.value)" style="width:130px;padding:6px 10px">
+              <option value="MMM D, YYYY">MMM D, YYYY</option>
+              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">PIN Lock</div><div class="settings-sub">Lock app on open</div></div>
+            <div class="toggle" id="pin-toggle" onclick="togglePin()"></div>
+          </div>
+        </div>
+
+        <div class="section-title">Account</div>
+        <div class="settings-section">
+          <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+            <div class="settings-label">Logged in as</div>
+            <div class="settings-sub" id="settings-email" style="word-break:break-all"></div>
+          </div>
+          <div class="settings-row" onclick="signOut()" style="cursor:pointer">
+            <div class="settings-label" style="color:var(--danger)">Sign Out</div>
+          </div>
+        </div>
+
+        <div class="section-title">Data</div>
+        <div class="settings-section">
+          <div class="settings-row" onclick="exportData()" style="cursor:pointer">
+            <div class="settings-label">Export All Data (JSON)</div>
+          </div>
+          <div class="settings-row" onclick="importData()" style="cursor:pointer">
+            <div class="settings-label">Import Data</div>
+          </div>
+        </div>
+
+        <div class="danger-zone">
+          <button class="btn-danger" style="width:100%" onclick="clearAllData()">Clear All Local Data</button>
+        </div>
+        <div style="text-align:center;padding:16px;font-size:11px;color:var(--text3)">Triplog v1.0 · Built for travelers</div>
+      </div>
+    </div>
+
+    <!-- TRIP DETAIL (replaces pages on open) -->
+    <div id="page-detail" class="page">
+      <div class="detail-hero" id="detail-hero"></div>
+      <div class="detail-tabs" id="detail-tabs">
+        <div class="detail-tab active" onclick="showDetailTab('itinerary',this)">Itinerary</div>
+        <div class="detail-tab" onclick="showDetailTab('budget',this)">Budget</div>
+        <div class="detail-tab" onclick="showDetailTab('docs',this)">Docs</div>
+        <div class="detail-tab" onclick="showDetailTab('companions',this)">People</div>
+        <div class="detail-tab" onclick="showDetailTab('reminders',this)">Alerts</div>
+      </div>
+      <div id="detail-itinerary" class="detail-panel active"></div>
+      <div id="detail-budget" class="detail-panel"></div>
+      <div id="detail-docs" class="detail-panel"></div>
+      <div id="detail-companions" class="detail-panel"></div>
+      <div id="detail-reminders" class="detail-panel"></div>
+    </div>
+  </div>
+
+  <div id="tabs">
+    <button class="tab-btn active" data-page="trips" onclick="switchPage('trips',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Trips
+    </button>
+    <button class="tab-btn" data-page="calendar" onclick="switchPage('calendar',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Calendar
+    </button>
+    <button class="tab-btn" data-page="search" onclick="switchPage('search',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Search
+    </button>
+    <button class="tab-btn" data-page="settings" onclick="switchPage('settings',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </button>
+  </div>
+</div>
+
+<button class="fab" id="fab-btn" onclick="onFab()">+</button>
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <h2>Triplog ✈️</h2>
+  <p>Your personal travel companion</p>
+  <div class="auth-box">
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login',this)">Sign In</div>
+      <div class="auth-tab" onclick="switchAuthTab('signup',this)">Sign Up</div>
+    </div>
+    <div id="auth-login">
+      <div class="field-group" style="margin-bottom:10px">
+        <label class="field-label">Email</label>
+        <input type="email" id="auth-email" placeholder="you@example.com">
+      </div>
+      <div class="field-group" style="margin-bottom:14px">
+        <label class="field-label">Password</label>
+        <input type="password" id="auth-password" placeholder="••••••••">
+      </div>
+      <div class="auth-error" id="auth-error"></div>
+      <button class="btn-primary" onclick="doSignIn()" style="margin-top:8px">Sign In</button>
+      <button style="width:100%;margin-top:10px;padding:10px;color:var(--text2);font-size:13px" onclick="continueOffline()">Continue Offline (no sync)</button>
+    </div>
+    <div id="auth-signup" style="display:none">
+      <div class="field-group" style="margin-bottom:10px">
+        <label class="field-label">Email</label>
+        <input type="email" id="signup-email" placeholder="you@example.com">
+      </div>
+      <div class="field-group" style="margin-bottom:10px">
+        <label class="field-label">Password</label>
+        <input type="password" id="signup-password" placeholder="Min 6 characters">
+      </div>
+      <div class="auth-error" id="signup-error"></div>
+      <button class="btn-primary" onclick="doSignUp()" style="margin-top:8px">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- PIN OVERLAY -->
+<div id="pin-overlay">
+  <h2>Enter PIN</h2>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-grid">
+    <button class="pin-key" onclick="pinPress('1')">1</button>
+    <button class="pin-key" onclick="pinPress('2')">2</button>
+    <button class="pin-key" onclick="pinPress('3')">3</button>
+    <button class="pin-key" onclick="pinPress('4')">4</button>
+    <button class="pin-key" onclick="pinPress('5')">5</button>
+    <button class="pin-key" onclick="pinPress('6')">6</button>
+    <button class="pin-key" onclick="pinPress('7')">7</button>
+    <button class="pin-key" onclick="pinPress('8')">8</button>
+    <button class="pin-key" onclick="pinPress('9')">9</button>
+    <button class="pin-key" onclick="pinPress('clear')" style="font-size:14px;font-weight:500">Clear</button>
+    <button class="pin-key" onclick="pinPress('0')">0</button>
+    <button class="pin-key" onclick="pinPress('back')" style="font-size:18px">⌫</button>
+  </div>
+  <p style="color:var(--text3);font-size:13px">Forgot PIN? <button onclick="resetPin()" style="color:var(--accent);font-size:13px">Reset via email</button></p>
+</div>
+
+<!-- SHEET -->
+<div id="sheet-backdrop" onclick="closeSheet()"></div>
+<div id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title" id="sheet-title">Add Trip</div>
+    <button class="sheet-close" onclick="closeSheet()">✕</button>
+  </div>
+  <div class="sheet-body" id="sheet-body"></div>
+  <div class="sheet-footer" id="sheet-footer"></div>
+</div>
+
+<div id="toast-container"></div>
+<canvas id="export-canvas"></canvas>
+
+<script>
+// ═══════════════════════════════════════════════
+// SUPABASE CONFIG — REPLACE WITH YOUR VALUES
+// ═══════════════════════════════════════════════
+const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE';
+
+let sb = null;
+try {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch(e) { console.warn('Supabase init failed', e); }
+
+// ═══ DATA MODEL ═══
+const DB_KEY = 'triplog_v1';
+const SETTINGS_KEY = 'triplog_settings';
+const PIN_KEY = 'triplog_pin';
+const HISTORY_KEY = 'triplog_history';
+
+let data = { trips: [] };
+let settings = { currency: 'PHP', dateFormat: 'MMM D, YYYY', pinEnabled: false };
+let currentUser = null;
+let currentTripId = null;
+let currentFilter = 'all';
+let calDate = new Date();
+let pinBuffer = '';
+let sheetAction = null;
+let isOnline = navigator.onLine;
+let syncPending = false;
+
+// ═══ INIT ═══
+async function init() {
+  loadLocal();
+  loadSettings();
+  applySettings();
+  checkOnline();
+  window.addEventListener('online', () => { isOnline = true; updateSyncBadge(); if(currentUser) syncData(); });
+  window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
+
+  // Check Supabase config
+  if (SUPABASE_URL.includes('YOUR_PROJECT')) {
+    // No Supabase configured — skip auth
+    continueOffline();
+    return;
+  }
+
+  try {
+    const { data: session } = await sb.auth.getSession();
+    if (session?.session) {
+      currentUser = session.session.user;
+      onAuthed();
+    } else {
+      showAuth();
+    }
+  } catch(e) {
+    continueOffline();
+  }
+}
+
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) data = JSON.parse(raw);
+    if (!data.trips) data.trips = [];
+  } catch(e) { data = { trips: [] }; }
+}
+
+function saveLocal() {
+  try {
+    const str = JSON.stringify(data);
+    const bytes = new Blob([str]).size;
+    if (bytes > 4*1024*1024) toast('⚠️ Storage nearly full! Export your data.', 'warn');
+    localStorage.setItem(DB_KEY, str);
+  } catch(e) { toast('Storage error: ' + e.message, 'error'); }
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) settings = { ...settings, ...JSON.parse(raw) };
+  } catch(e) {}
+}
+
+function applySettings() {
+  document.getElementById('setting-currency').value = settings.currency || 'PHP';
+  document.getElementById('setting-dateformat').value = settings.dateFormat || 'MMM D, YYYY';
+  const pt = document.getElementById('pin-toggle');
+  if (settings.pinEnabled) pt.classList.add('on'); else pt.classList.remove('on');
+}
+
+function saveSetting(key, val) {
+  settings[key] = val;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  toast('Setting saved', 'success');
+}
+
+// ═══ SUPABASE SYNC ═══
+async function syncData() {
+  if (!currentUser || !sb || !isOnline) return;
+  try {
+    const { data: remote, error } = await sb.from('triplog_data').select('*').eq('user_id', currentUser.id).single();
+    if (error && error.code !== 'PGRST116') { console.warn('Sync read error', error); return; }
+    if (remote) {
+      const remoteData = remote.data || { trips: [] };
+      // Merge: local wins for edited, remote for new
+      const merged = mergeData(data, remoteData);
+      data = merged;
+      saveLocal();
+    }
+    // Push local to remote
+    await sb.from('triplog_data').upsert({ user_id: currentUser.id, data: data, updated_at: new Date().toISOString() });
+    updateSyncBadge(false);
+  } catch(e) { console.warn('Sync failed', e); updateSyncBadge(true); }
+}
+
+function mergeData(local, remote) {
+  const localMap = {};
+  (local.trips || []).forEach(t => localMap[t.id] = t);
+  (remote.trips || []).forEach(t => {
+    if (!localMap[t.id]) localMap[t.id] = t;
+  });
+  return { trips: Object.values(localMap) };
+}
+
+async function pushSync() {
+  if (!currentUser || !sb || !isOnline) { syncPending = true; return; }
+  try {
+    await sb.from('triplog_data').upsert({ user_id: currentUser.id, data: data, updated_at: new Date().toISOString() });
+  } catch(e) { syncPending = true; }
+}
+
+function updateSyncBadge(err) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if (!isOnline) { dot.className = 'sync-dot offline'; lbl.textContent = 'Offline'; }
+  else if (err) { dot.className = 'sync-dot offline'; lbl.textContent = 'Sync error'; }
+  else { dot.className = 'sync-dot'; lbl.textContent = currentUser ? 'Synced' : 'Local'; }
+}
+
+function checkOnline() { isOnline = navigator.onLine; updateSyncBadge(); }
+
+// ═══ AUTH ═══
+function showAuth() { document.getElementById('auth-overlay').style.display = 'flex'; }
+function hideAuth() { document.getElementById('auth-overlay').style.display = 'none'; }
+
+function switchAuthTab(tab, el) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('auth-login').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('auth-signup').style.display = tab === 'signup' ? '' : 'none';
+}
+
+async function doSignIn() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-password').value;
+  const err = document.getElementById('auth-error');
+  err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Please fill in all fields'; return; }
+  try {
+    const { data: d, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) { err.textContent = error.message; return; }
+    currentUser = d.user;
+    onAuthed();
+  } catch(e) { err.textContent = 'Sign in failed: ' + e.message; }
+}
+
+async function doSignUp() {
+  const email = document.getElementById('signup-email').value.trim();
+  const pass = document.getElementById('signup-password').value;
+  const err = document.getElementById('signup-error');
+  err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Please fill in all fields'; return; }
+  if (pass.length < 6) { err.textContent = 'Password must be at least 6 characters'; return; }
+  try {
+    const { data: d, error } = await sb.auth.signUp({ email, password: pass });
+    if (error) { err.textContent = error.message; return; }
+    toast('Account created! Check your email to confirm.', 'success');
+    currentUser = d.user;
+    onAuthed();
+  } catch(e) { err.textContent = 'Sign up failed: ' + e.message; }
+}
+
+function continueOffline() {
+  hideAuth();
+  currentUser = null;
+  updateSyncBadge();
+  document.getElementById('user-btn').textContent = '?';
+  afterAuth();
+}
+
+function onAuthed() {
+  hideAuth();
+  document.getElementById('user-btn').textContent = (currentUser?.email || '?')[0].toUpperCase();
+  document.getElementById('settings-email').textContent = currentUser?.email || 'Offline';
+  updateSyncBadge();
+  syncData().then(() => { afterAuth(); });
+}
+
+function afterAuth() {
+  checkPinLock();
+  renderTrips();
+  renderAlerts();
+  renderCalendar();
+}
+
+async function signOut() {
+  if (sb && currentUser) await sb.auth.signOut();
+  currentUser = null;
+  showAuth();
+}
+
+function showUserMenu() {
+  if (!currentUser) { showAuth(); return; }
+  openSheet('Account', `
+    <div style="text-align:center;padding:8px 0">
+      <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;margin:0 auto 12px">${(currentUser.email||'?')[0].toUpperCase()}</div>
+      <div style="font-weight:600;font-size:16px">${currentUser.email||''}</div>
+      <div class="text-muted" style="margin-top:4px">Member since ${new Date(currentUser.created_at||Date.now()).getFullYear()}</div>
+    </div>
+  `, [
+    { label: 'Sync Now', action: () => { syncData(); closeSheet(); toast('Syncing…', 'success'); }},
+    { label: 'Sign Out', danger: true, action: () => { closeSheet(); signOut(); }}
+  ]);
+}
+
+// ═══ PIN LOCK ═══
+function checkPinLock() {
+  const pinHash = localStorage.getItem(PIN_KEY);
+  if (settings.pinEnabled && pinHash) showPinLock();
+}
+
+function showPinLock() {
+  const overlay = document.getElementById('pin-overlay');
+  overlay.style.display = 'flex';
+  pinBuffer = '';
+  updatePinDots();
+}
+
+function hidePinLock() { document.getElementById('pin-overlay').style.display = 'none'; }
+
+function pinPress(k) {
+  if (k === 'clear') { pinBuffer = ''; updatePinDots(); return; }
+  if (k === 'back') { pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); return; }
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += k;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(checkPin, 100);
+}
+
+function updatePinDots() {
+  for(let i=0;i<4;i++){
+    const d = document.getElementById('pd'+i);
+    if(d) { if(i < pinBuffer.length) d.classList.add('filled'); else d.classList.remove('filled'); }
+  }
+}
+
+async function checkPin() {
+  const stored = localStorage.getItem(PIN_KEY);
+  const hash = await sha256(pinBuffer);
+  if (hash === stored) { hidePinLock(); }
+  else { toast('Incorrect PIN', 'error'); pinBuffer = ''; updatePinDots(); }
+}
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function togglePin() {
+  if (settings.pinEnabled) {
+    // Disable
+    settings.pinEnabled = false;
+    localStorage.removeItem(PIN_KEY);
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    applySettings();
+    toast('PIN lock disabled', 'success');
+  } else {
+    // Enable — ask for PIN
+    openSheet('Set PIN', `
+      <p class="text-muted">Choose a 4-digit PIN to lock your app.</p>
+      <div class="field-group"><label class="field-label">New PIN (4 digits)</label>
+      <input type="password" id="new-pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••"></div>
+      <div class="field-group"><label class="field-label">Confirm PIN</label>
+      <input type="password" id="confirm-pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="••••"></div>
+    `, [{ label: 'Set PIN', action: setPin }]);
+  }
+}
+
+async function setPin() {
+  const p1 = document.getElementById('new-pin')?.value;
+  const p2 = document.getElementById('confirm-pin')?.value;
+  if (!p1 || p1.length !== 4 || !/^\d{4}$/.test(p1)) { toast('PIN must be exactly 4 digits', 'error'); return; }
+  if (p1 !== p2) { toast('PINs do not match', 'error'); return; }
+  const hash = await sha256(p1);
+  localStorage.setItem(PIN_KEY, hash);
+  settings.pinEnabled = true;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  applySettings();
+  closeSheet();
+  toast('PIN set successfully', 'success');
+}
+
+function resetPin() {
+  localStorage.removeItem(PIN_KEY);
+  settings.pinEnabled = false;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  hidePinLock();
+  toast('PIN cleared', 'success');
+}
+
+// ═══ NAVIGATION ═══
+let prevPage = 'trips';
+function switchPage(page, el) {
+  prevPage = currentPage();
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (el) el.classList.add('active');
+  if (page === 'calendar') renderCalendar();
+  if (page === 'trips') { renderTrips(); renderAlerts(); }
+  currentTripId = null;
+  updateFab(page);
+}
+
+function currentPage() {
+  const p = document.querySelector('.page.active');
+  return p ? p.id.replace('page-','') : 'trips';
+}
+
+function updateFab(page) {
+  const fab = document.getElementById('fab-btn');
+  if (page === 'trips') { fab.style.display = ''; fab.textContent = '+'; }
+  else if (page === 'detail') { fab.style.display = ''; fab.textContent = '+'; }
+  else { fab.style.display = 'none'; }
+}
+
+function onFab() {
+  const page = currentPage();
+  if (page === 'trips') openTripSheet();
+  else if (page === 'detail' && currentTripId) {
+    const tab = document.querySelector('#detail-tabs .detail-tab.active');
+    const tabName = tab ? tab.textContent.toLowerCase() : 'itinerary';
+    if (tabName === 'itinerary') openEventSheet();
+    else if (tabName === 'budget') openExpenseSheet();
+    else if (tabName === 'docs') openDocUpload();
+    else if (tabName === 'people') openCompanionSheet();
+    else if (tabName === 'alerts') openReminderSheet();
+    else openEventSheet();
+  }
+}
+
+// ═══ SHEET ═══
+function openSheet(title, bodyHTML, actions) {
+  document.getElementById('sheet-title').textContent = title;
+  document.getElementById('sheet-body').innerHTML = bodyHTML;
+  const footer = document.getElementById('sheet-footer');
+  footer.innerHTML = '';
+  (actions||[]).forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = a.danger ? 'btn-danger' : 'btn-primary';
+    btn.style.flex = '1';
+    btn.textContent = a.label;
+    btn.onclick = a.action;
+    footer.appendChild(btn);
+  });
+  document.getElementById('sheet-backdrop').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+}
+
+function closeSheet() {
+  document.getElementById('sheet-backdrop').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+}
+
+// ═══ TRIP CRUD ═══
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function setFilter(el, type) {
+  if (type === 'trip') {
+    document.querySelectorAll('#trip-filters .chip').forEach(c => c.classList.remove('sel'));
+    el.classList.add('sel');
+    currentFilter = el.dataset.filter;
+    renderTrips();
+  }
+}
+
+function renderTrips() {
+  const list = document.getElementById('trip-list');
+  let trips = [...data.trips];
+  if (currentFilter !== 'all') trips = trips.filter(t => {
+    const s = tripStatus(t);
+    if (currentFilter === 'upcoming') return s === 'upcoming';
+    if (currentFilter === 'ongoing') return s === 'ongoing';
+    if (currentFilter === 'completed') return s === 'completed';
+    if (currentFilter === 'local') return t.type === 'local';
+    if (currentFilter === 'international') return t.type === 'international';
+    return true;
+  });
+  trips.sort((a,b) => new Date(a.startDate) - new Date(b.startDate));
+
+  if (!trips.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">✈️</div><div class="empty-title">No trips yet</div><div class="empty-sub">Tap + to add your first adventure</div></div>`;
+    return;
+  }
+
+  const countdown = renderCountdown();
+  document.getElementById('countdown-area').innerHTML = countdown;
+
+  list.innerHTML = trips.map(t => {
+    const status = tripStatus(t);
+    const budget = (t.budget||0).toLocaleString();
+    return `<div class="trip-card ${t.type||'local'}" onclick="openTripDetail('${t.id}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+        <h3>${esc(t.name)}</h3>
+        <span class="badge ${status}">${status}</span>
+      </div>
+      <div class="meta">
+        <span>${esc(t.destination||'')}</span>
+        <span>·</span>
+        <span>${fmtDate(t.startDate)} – ${fmtDate(t.endDate)}</span>
+      </div>
+      <div class="meta" style="margin-top:6px;justify-content:space-between">
+        <span class="badge ${t.type==='international'?'intl':'local'}">${t.type==='international'?'🌏 International':'🏠 Local'}</span>
+        <span style="font-weight:600;font-size:13px">${settings.currency} ${budget}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCountdown() {
+  const upcoming = data.trips.filter(t => tripStatus(t) === 'upcoming')
+    .sort((a,b) => new Date(a.startDate)-new Date(b.startDate))[0];
+  if (!upcoming) return '';
+  const days = Math.ceil((new Date(upcoming.startDate) - new Date()) / 86400000);
+  return `<div class="countdown-banner">
+    <div class="countdown-days">${days}</div>
+    <div>
+      <div style="font-weight:600;font-size:14px">days until</div>
+      <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600">${esc(upcoming.name)}</div>
+      <div class="text-muted" style="font-size:12px">${esc(upcoming.destination||'')}</div>
+    </div>
+  </div>`;
+}
+
+function tripStatus(t) {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const s = new Date(t.startDate); s.setHours(0,0,0,0);
+  const e = new Date(t.endDate); e.setHours(23,59,59,999);
+  if (now < s) return 'upcoming';
+  if (now >= s && now <= e) return 'ongoing';
+  return 'completed';
+}
+
+function openTripSheet(tripId) {
+  const trip = tripId ? data.trips.find(t => t.id === tripId) : null;
+  const title = trip ? 'Edit Trip' : 'New Trip';
+  const body = `
+    <div class="field-group"><label class="field-label">Trip Name *</label>
+    <input id="f-name" placeholder="e.g. Osaka Spring Trip" value="${esc(trip?.name||'')}"></div>
+    <div class="field-group"><label class="field-label">Destination *</label>
+    <input id="f-dest" placeholder="City, Country" value="${esc(trip?.destination||'')}"></div>
+    <div class="row">
+      <div class="field-group"><label class="field-label">Start Date</label><input type="date" id="f-start" value="${trip?.startDate||''}"></div>
+      <div class="field-group"><label class="field-label">End Date</label><input type="date" id="f-end" value="${trip?.endDate||''}"></div>
+    </div>
+    <div class="field-group"><label class="field-label">Type</label>
+    <select id="f-type"><option value="local" ${trip?.type==='local'?'selected':''}>🏠 Local</option><option value="international" ${trip?.type==='international'?'selected':''}>🌏 International</option></select></div>
+    <div class="row">
+      <div class="field-group"><label class="field-label">Budget</label><input type="number" id="f-budget" placeholder="0" value="${trip?.budget||''}"></div>
+      <div class="field-group"><label class="field-label">Currency</label>
+      <select id="f-currency">${['PHP','USD','EUR','JPY','SGD','AUD','GBP','KRW'].map(c=>`<option value="${c}" ${(trip?.currency||settings.currency)===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    </div>
+    <div class="field-group"><label class="field-label">Notes</label>
+    <textarea id="f-notes" placeholder="Trip overview, goals…">${esc(trip?.notes||'')}</textarea></div>
+    ${trip ? `<button class="btn-danger" style="width:100%;margin-top:8px" onclick="deleteTrip('${trip.id}')">Delete Trip</button>` : ''}
+  `;
+  const actions = [
+    { label: trip ? 'Save Changes' : 'Create Trip', action: () => saveTrip(tripId) }
+  ];
+  openSheet(title, body, actions);
+}
+
+function saveTrip(tripId) {
+  const name = document.getElementById('f-name').value.trim();
+  const dest = document.getElementById('f-dest').value.trim();
+  const start = document.getElementById('f-start').value;
+  const end = document.getElementById('f-end').value;
+  if (!name) { toast('Trip name is required', 'error'); return; }
+  if (!dest) { toast('Destination is required', 'error'); return; }
+  if (start && end && start > end) { toast('End date must be after start date', 'error'); return; }
+
+  if (tripId) {
+    const idx = data.trips.findIndex(t => t.id === tripId);
+    if (idx >= 0) {
+      data.trips[idx] = { ...data.trips[idx],
+        name, destination: dest, startDate: start, endDate: end,
+        type: document.getElementById('f-type').value,
+        budget: parseFloat(document.getElementById('f-budget').value)||0,
+        currency: document.getElementById('f-currency').value,
+        notes: document.getElementById('f-notes').value.trim()
+      };
+    }
+  } else {
+    data.trips.push({
+      id: uid(), name, destination: dest, startDate: start, endDate: end,
+      type: document.getElementById('f-type').value,
+      budget: parseFloat(document.getElementById('f-budget').value)||0,
+      currency: document.getElementById('f-currency').value,
+      notes: document.getElementById('f-notes').value.trim(),
+      events: [], expenses: [], documents: [], companions: [], reminders: [], createdAt: new Date().toISOString()
+    });
+  }
+
+  saveLocal(); pushSync(); closeSheet();
+  toast(tripId ? 'Trip updated' : 'Trip created! 🎉', 'success');
+  renderTrips(); renderAlerts();
+  archiveCompleted();
+}
+
+function deleteTrip(id) {
+  if (!confirm('Delete this trip and all its data?')) return;
+  data.trips = data.trips.filter(t => t.id !== id);
+  saveLocal(); pushSync(); closeSheet();
+  if (currentTripId === id) { currentTripId = null; switchPage('trips', document.querySelector('[data-page=trips]')); }
+  toast('Trip deleted', 'success');
+  renderTrips();
+}
+
+function archiveCompleted() {
+  const completed = data.trips.filter(t => tripStatus(t) === 'completed');
+  const hist = { timestamp: new Date().toISOString(), trips: completed };
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+}
+
+// ═══ TRIP DETAIL ═══
+function openTripDetail(id) {
+  currentTripId = id;
+  const trip = data.trips.find(t => t.id === id);
+  if (!trip) return;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-detail').classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  updateFab('detail');
+
+  const status = tripStatus(trip);
+  document.getElementById('detail-hero').innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+      <div>
+        <span class="badge ${trip.type==='international'?'intl':'local'}" style="margin-bottom:8px;display:inline-block">${trip.type==='international'?'🌏 International':'🏠 Local'}</span>
+        <h2>${esc(trip.name)}</h2>
+        <div class="meta" style="color:var(--text2);margin-top:4px">📍 ${esc(trip.destination||'')} &nbsp;·&nbsp; ${fmtDate(trip.startDate)} – ${fmtDate(trip.endDate)}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="icon-btn" onclick="openTripSheet('${id}')" title="Edit">✏️</button>
+        <button class="icon-btn" onclick="exportTrip('${id}')" title="Export">📤</button>
+        <button class="icon-btn" onclick="goBack()" title="Back">✕</button>
+      </div>
+    </div>
+    <div style="margin-top:10px"><span class="badge ${status}">${status}</span></div>
+  `;
+
+  showDetailTab('itinerary', document.querySelector('#detail-tabs .detail-tab:first-child'));
+}
+
+function showDetailTab(tab, el) {
+  document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.detail-panel').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const panel = document.getElementById('detail-' + tab);
+  if (panel) { panel.classList.add('active'); }
+
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+
+  if (tab === 'itinerary') renderItinerary(trip);
+  else if (tab === 'budget') renderBudget(trip);
+  else if (tab === 'docs') renderDocs(trip);
+  else if (tab === 'companions') renderCompanions(trip);
+  else if (tab === 'reminders') renderReminders(trip);
+}
+
+function goBack() {
+  currentTripId = null;
+  switchPage('trips', document.querySelector('[data-page=trips]'));
+}
+
+// ═══ ITINERARY ═══
+const EVENT_ICONS = { flight:'✈️', hotel:'🏨', activity:'🎯', meal:'🍽️', transfer:'🚌', note:'📝' };
+const EVENT_COLORS = { flight:'flight', hotel:'hotel', activity:'activity', meal:'meal', transfer:'transfer', note:'note' };
+
+function renderItinerary(trip) {
+  const panel = document.getElementById('detail-itinerary');
+  const events = trip.events || [];
+  if (!events.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">No events yet</div><div class="empty-sub">Tap + to add flights, hotels, activities…</div></div>`;
+    return;
+  }
+
+  // Group by day
+  const byDay = {};
+  events.forEach(e => { const k = e.date||'No Date'; if (!byDay[k]) byDay[k] = []; byDay[k].push(e); });
+  Object.keys(byDay).forEach(k => byDay[k].sort((a,b) => (a.time||'').localeCompare(b.time||'')));
+  const days = Object.keys(byDay).sort();
+
+  panel.innerHTML = days.map((day, di) => {
+    const evs = byDay[day];
+    return `<div class="day-block">
+      <div class="day-label">
+        <span>Day ${di+1} &mdash; ${fmtDate(day)}</span>
+        <button class="icon-btn" onclick="openEventSheet('${day}')" style="font-size:16px">+</button>
+      </div>
+      <div style="margin:0 16px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)">
+        ${evs.map((ev,i) => `
+          <div class="event-item">
+            <div class="event-icon ${EVENT_COLORS[ev.type]||'note'}">${EVENT_ICONS[ev.type]||'📌'}</div>
+            <div class="event-body">
+              <div class="event-time">${ev.time||''} ${ev.confirmNo ? '· #'+ev.confirmNo : ''}</div>
+              <div class="event-title">${esc(ev.title||'')}</div>
+              ${ev.location ? `<div class="event-loc">📍 ${esc(ev.location)}</div>` : ''}
+              ${ev.notes ? `<div class="text-muted" style="font-size:12px;margin-top:2px">${esc(ev.notes)}</div>` : ''}
+            </div>
+            <div class="event-actions">
+              <button class="icon-btn" onclick="openEventSheet(null,'${ev.id}')">✏️</button>
+              <button class="icon-btn" onclick="deleteEvent('${ev.id}')">🗑️</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openEventSheet(date, eventId) {
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  const ev = eventId ? (trip.events||[]).find(e => e.id === eventId) : null;
+  openSheet(ev ? 'Edit Event' : 'Add Event', `
+    <div class="field-group"><label class="field-label">Type</label>
+    <select id="ev-type">${Object.keys(EVENT_ICONS).map(k=>`<option value="${k}" ${ev?.type===k?'selected':''}>${EVENT_ICONS[k]} ${k.charAt(0).toUpperCase()+k.slice(1)}</option>`).join('')}</select></div>
+    <div class="row">
+      <div class="field-group"><label class="field-label">Date</label><input type="date" id="ev-date" value="${ev?.date||date||''}"></div>
+      <div class="field-group"><label class="field-label">Time</label><input type="time" id="ev-time" value="${ev?.time||''}"></div>
+    </div>
+    <div class="field-group"><label class="field-label">Title *</label><input id="ev-title" placeholder="e.g. Departure to Tokyo" value="${esc(ev?.title||'')}"></div>
+    <div class="field-group"><label class="field-label">Location</label><input id="ev-loc" placeholder="Airport, hotel name…" value="${esc(ev?.location||'')}"></div>
+    <div class="field-group"><label class="field-label">Confirmation #</label><input id="ev-confirm" placeholder="Booking reference" value="${esc(ev?.confirmNo||'')}"></div>
+    <div class="field-group"><label class="field-label">Notes</label><textarea id="ev-notes">${esc(ev?.notes||'')}</textarea></div>
+    ${ev ? `<button class="btn-danger" style="width:100%" onclick="deleteEvent('${ev.id}');closeSheet()">Delete Event</button>` : ''}
+  `, [{ label: ev ? 'Save' : 'Add Event', action: () => saveEvent(eventId) }]);
+}
+
+function saveEvent(eventId) {
+  const title = document.getElementById('ev-title').value.trim();
+  if (!title) { toast('Title is required', 'error'); return; }
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  if (!trip.events) trip.events = [];
+  const ev = {
+    id: eventId || uid(),
+    type: document.getElementById('ev-type').value,
+    date: document.getElementById('ev-date').value,
+    time: document.getElementById('ev-time').value,
+    title, location: document.getElementById('ev-loc').value.trim(),
+    confirmNo: document.getElementById('ev-confirm').value.trim(),
+    notes: document.getElementById('ev-notes').value.trim()
+  };
+  if (eventId) {
+    const idx = trip.events.findIndex(e => e.id === eventId);
+    if (idx >= 0) trip.events[idx] = ev;
+  } else { trip.events.push(ev); }
+  saveLocal(); pushSync(); closeSheet();
+  toast(eventId ? 'Event updated' : 'Event added', 'success');
+  renderItinerary(trip);
+}
+
+function deleteEvent(id) {
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  trip.events = (trip.events||[]).filter(e => e.id !== id);
+  saveLocal(); pushSync();
+  toast('Event deleted', 'success');
+  renderItinerary(trip);
+}
+
+// ═══ BUDGET ═══
+const EXPENSE_CATS = ['Flights','Accommodation','Food','Transport','Activities','Shopping','Others'];
+
+function renderBudget(trip) {
+  const panel = document.getElementById('detail-budget');
+  const expenses = trip.expenses || [];
+  const total = expenses.reduce((s,e) => s+parseFloat(e.amount||0), 0);
+  const budget = trip.budget || 0;
+  const remaining = budget - total;
+  const pct = budget > 0 ? Math.min((total/budget)*100, 100) : 0;
+  const fillClass = pct > 100 ? 'over' : pct > 80 ? 'warn' : '';
+  const cur = trip.currency || settings.currency;
+
+  panel.innerHTML = `<div class="section-pad">
+    <div class="budget-summary">
+      <div class="budget-big">${cur} ${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class="budget-meta">spent of ${cur} ${budget.toLocaleString()} budget</div>
+      <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${pct}%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px">
+        <span class="text-muted" style="font-size:12px">${pct.toFixed(0)}% used</span>
+        <span style="font-size:12px;font-weight:600;color:${remaining<0?'var(--danger)':'var(--local)'}">${cur} ${Math.abs(remaining).toLocaleString(undefined,{minimumFractionDigits:2})} ${remaining<0?'over':'left'}</span>
+      </div>
+    </div>
+    <div class="section-title">Expenses <button class="icon-btn" onclick="openExpenseSheet()" style="font-size:16px">+</button></div>
+    ${!expenses.length ? `<div class="empty-state" style="padding:32px"><div class="empty-icon">💸</div><div class="empty-title">No expenses logged</div></div>` :
+      expenses.sort((a,b)=>b.date?.localeCompare(a.date||'')||0).map(e => `
+      <div class="expense-row">
+        <div><div class="expense-cat">${esc(e.category||'')}</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtDate(e.date)} ${e.notes?'· '+esc(e.notes):''}</div></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="expense-amount">${cur} ${parseFloat(e.amount||0).toLocaleString(undefined,{minimumFractionDigits:2})}</span>
+          <button class="icon-btn" onclick="deleteExpense('${e.id}')">🗑️</button>
+        </div>
+      </div>`).join('')
+    }
+  </div>`;
+}
+
+function openExpenseSheet(expId) {
+  const trip = data.trips.find(t => t.id === currentTripId);
+  const exp = expId ? (trip?.expenses||[]).find(e => e.id === expId) : null;
+  openSheet(exp?'Edit Expense':'Add Expense', `
+    <div class="field-group"><label class="field-label">Category</label>
+    <select id="exp-cat">${EXPENSE_CATS.map(c=>`<option value="${c}" ${exp?.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="row">
+      <div class="field-group"><label class="field-label">Amount *</label><input type="number" id="exp-amt" placeholder="0.00" value="${exp?.amount||''}"></div>
+      <div class="field-group"><label class="field-label">Date</label><input type="date" id="exp-date" value="${exp?.date||new Date().toISOString().slice(0,10)}"></div>
+    </div>
+    <div class="field-group"><label class="field-label">Notes</label><input id="exp-notes" placeholder="Description…" value="${esc(exp?.notes||'')}"></div>
+    ${exp?`<button class="btn-danger" style="width:100%" onclick="deleteExpense('${exp.id}');closeSheet()">Delete</button>`:''}
+  `, [{ label: exp?'Save':'Add Expense', action: () => saveExpense(expId) }]);
+}
+
+function saveExpense(expId) {
+  const amt = parseFloat(document.getElementById('exp-amt').value);
+  if (!amt || amt <= 0) { toast('Enter a valid amount', 'error'); return; }
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  if (!trip.expenses) trip.expenses = [];
+  const exp = { id: expId||uid(), category: document.getElementById('exp-cat').value,
+    amount: amt, date: document.getElementById('exp-date').value,
+    notes: document.getElementById('exp-notes').value.trim() };
+  if (expId) { const i = trip.expenses.findIndex(e=>e.id===expId); if(i>=0) trip.expenses[i]=exp; }
+  else trip.expenses.push(exp);
+  saveLocal(); pushSync(); closeSheet();
+  toast(expId?'Expense updated':'Expense added', 'success');
+  renderBudget(trip);
+}
+
+function deleteExpense(id) {
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  trip.expenses = (trip.expenses||[]).filter(e => e.id !== id);
+  saveLocal(); pushSync(); toast('Deleted', 'success'); renderBudget(trip);
+}
+
+// ═══ DOCUMENTS ═══
+const DOC_TYPES = ['E-ticket','Hotel Confirmation','Visa','Passport','Insurance','Others'];
+
+function renderDocs(trip) {
+  const panel = document.getElementById('detail-docs');
+  const docs = trip.documents || [];
+  if (!docs.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">No documents</div><div class="empty-sub">Store your tickets, visas, confirmations here</div></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="section-pad"><div class="doc-grid">${
+    docs.map(d => `<div class="doc-card" onclick="previewDoc('${d.id}')">
+      ${d.fileType?.startsWith('image') ? `<img src="${d.data}" alt="${esc(d.name)}" loading="lazy">` : `<div class="doc-pdf-icon">📄</div>`}
+      <div class="doc-name">${esc(d.name)}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="doc-type">${esc(d.docType||'')}</span>
+        <button class="icon-btn" onclick="event.stopPropagation();deleteDoc('${d.id}')">🗑️</button>
+      </div>
+    </div>`).join('')
+  }</div></div>`;
+}
+
+function openDocUpload() {
+  openSheet('Add Document', `
+    <div class="field-group"><label class="field-label">Document Type</label>
+    <select id="doc-type">${DOC_TYPES.map(t=>`<option>${t}</option>`).join('')}</select></div>
+    <div class="field-group"><label class="field-label">Document Name</label>
+    <input id="doc-name" placeholder="e.g. Tokyo Flight Ticket"></div>
+    <div class="field-group"><label class="field-label">File (Image or PDF)</label>
+    <input type="file" id="doc-file" accept="image/*,.pdf" style="background:var(--bg3);border:1.5px dashed var(--border)"></div>
+  `, [{ label: 'Upload', action: uploadDoc }]);
+}
+
+async function uploadDoc() {
+  const name = document.getElementById('doc-name').value.trim();
+  const file = document.getElementById('doc-file').files[0];
+  if (!name) { toast('Document name required', 'error'); return; }
+  if (!file) { toast('Please select a file', 'error'); return; }
+  if (file.size > 5*1024*1024) { toast('File too large (max 5MB)', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const trip = data.trips.find(t => t.id === currentTripId);
+    if (!trip) return;
+    if (!trip.documents) trip.documents = [];
+    trip.documents.push({ id: uid(), name, docType: document.getElementById('doc-type').value,
+      fileType: file.type, data: e.target.result, addedAt: new Date().toISOString() });
+    saveLocal(); pushSync(); closeSheet();
+    toast('Document saved', 'success');
+    renderDocs(trip);
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewDoc(docId) {
+  const trip = data.trips.find(t => t.id === currentTripId);
+  const doc = (trip?.documents||[]).find(d => d.id === docId);
+  if (!doc) return;
+  openSheet(doc.name, `
+    ${doc.fileType?.startsWith('image') ? `<img src="${doc.data}" style="width:100%;border-radius:var(--radius-sm)">` :
+    `<div style="text-align:center;padding:32px"><div style="font-size:64px">📄</div><div class="text-muted">${esc(doc.name)}</div></div>`}
+    <div class="text-muted" style="text-align:center">${doc.docType} · Added ${fmtDate(doc.addedAt?.slice(0,10))}</div>
+  `, [
+    { label: 'Download', action: () => { const a=document.createElement('a');a.href=doc.data;a.download=doc.name;a.click(); }},
+    { label: 'Delete', danger: true, action: () => { deleteDoc(docId); closeSheet(); }}
+  ]);
+}
+
+function deleteDoc(id) {
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  trip.documents = (trip.documents||[]).filter(d => d.id !== id);
+  saveLocal(); pushSync(); toast('Document deleted', 'success'); renderDocs(trip);
+}
+
+// ═══ COMPANIONS ═══
+const ROLES = ['Spouse','Partner','Friend','Colleague','Family','Guide','Other'];
+
+function renderCompanions(trip) {
+  const panel = document.getElementById('detail-companions');
+  const companions = trip.companions || [];
+  if (!companions.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No companions</div><div class="empty-sub">Add travel companions to this trip</div></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="section-pad">${companions.map(c => {
+    const initials = c.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+    const share = (trip.expenses||[]).filter(e=>e.companionId===c.id).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+    return `<div class="companion-item">
+      <div class="avatar">${initials}</div>
+      <div style="flex:1"><div style="font-weight:600">${esc(c.name)}</div><div class="text-muted" style="font-size:12px">${esc(c.role||'')}</div></div>
+      ${share>0?`<span style="font-size:12px;font-weight:600;color:var(--text2)">${settings.currency} ${share.toLocaleString()}</span>`:''}
+      <button class="icon-btn" onclick="deleteCompanion('${c.id}')">🗑️</button>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function openCompanionSheet() {
+  openSheet('Add Companion', `
+    <div class="field-group"><label class="field-label">Name *</label><input id="comp-name" placeholder="Full name"></div>
+    <div class="field-group"><label class="field-label">Role</label>
+    <select id="comp-role">${ROLES.map(r=>`<option>${r}</option>`).join('')}</select></div>
+  `, [{ label: 'Add', action: saveCompanion }]);
+}
+
+function saveCompanion() {
+  const name = document.getElementById('comp-name').value.trim();
+  if (!name) { toast('Name is required', 'error'); return; }
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  if (!trip.companions) trip.companions = [];
+  trip.companions.push({ id: uid(), name, role: document.getElementById('comp-role').value });
+  saveLocal(); pushSync(); closeSheet(); toast('Companion added', 'success'); renderCompanions(trip);
+}
+
+function deleteCompanion(id) {
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  trip.companions = (trip.companions||[]).filter(c => c.id !== id);
+  saveLocal(); pushSync(); toast('Removed', 'success'); renderCompanions(trip);
+}
+
+// ═══ REMINDERS ═══
+const REMINDER_TYPES = ['Departure','Check-in','Visa Expiry','Passport Renewal','Flight Check-in','Custom'];
+
+function renderReminders(trip) {
+  const panel = document.getElementById('detail-reminders');
+  const reminders = (trip.reminders||[]).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if (!reminders.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">No reminders</div><div class="empty-sub">Set alerts for departure, check-in, visa expiry…</div></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="section-pad">${reminders.map(r => {
+    const urg = reminderUrgency(r.date);
+    return `<div class="reminder-item">
+      <div class="reminder-urgency ${urg}"></div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px">${esc(r.title||r.type)}</div>
+        <div class="text-muted" style="font-size:12px">${r.type} · ${fmtDate(r.date)}</div>
+        ${r.notes?`<div class="text-muted" style="font-size:12px">${esc(r.notes)}</div>`:''}
+      </div>
+      <button class="icon-btn" onclick="deleteReminder('${r.id}')">🗑️</button>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function reminderUrgency(date) {
+  const d = new Date(date);
+  const now = new Date();
+  const diff = (d-now)/86400000;
+  if (diff < 0) return 'overdue';
+  if (diff <= 30) return 'soon';
+  return 'ok';
+}
+
+function openReminderSheet() {
+  openSheet('Add Reminder', `
+    <div class="field-group"><label class="field-label">Type</label>
+    <select id="rem-type">${REMINDER_TYPES.map(r=>`<option>${r}</option>`).join('')}</select></div>
+    <div class="field-group"><label class="field-label">Title</label><input id="rem-title" placeholder="Reminder title"></div>
+    <div class="field-group"><label class="field-label">Date *</label><input type="date" id="rem-date"></div>
+    <div class="field-group"><label class="field-label">Notes</label><input id="rem-notes" placeholder="Extra info…"></div>
+  `, [{ label: 'Add Reminder', action: saveReminder }]);
+}
+
+function saveReminder() {
+  const date = document.getElementById('rem-date').value;
+  if (!date) { toast('Date is required', 'error'); return; }
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  if (!trip.reminders) trip.reminders = [];
+  trip.reminders.push({ id: uid(), type: document.getElementById('rem-type').value,
+    title: document.getElementById('rem-title').value.trim(),
+    date, notes: document.getElementById('rem-notes').value.trim() });
+  saveLocal(); pushSync(); closeSheet(); toast('Reminder set', 'success'); renderReminders(trip);
+}
+
+function deleteReminder(id) {
+  const trip = data.trips.find(t => t.id === currentTripId);
+  if (!trip) return;
+  trip.reminders = (trip.reminders||[]).filter(r => r.id !== id);
+  saveLocal(); pushSync(); toast('Deleted', 'success'); renderReminders(trip);
+}
+
+// ═══ ALERTS BANNER ═══
+function renderAlerts() {
+  const bar = document.getElementById('alerts-bar');
+  const alerts = [];
+  data.trips.forEach(trip => {
+    (trip.reminders||[]).forEach(r => {
+      const urg = reminderUrgency(r.date);
+      if (urg === 'overdue' || urg === 'soon') {
+        alerts.push({ trip: trip.name, reminder: r });
+      }
+    });
+  });
+  if (!alerts.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = alerts.slice(0,3).map(a => `
+    <div class="alert-bar">🔔 <span><b>${esc(a.reminder.title||a.reminder.type)}</b> — ${esc(a.trip)} · ${fmtDate(a.reminder.date)}</span></div>
+  `).join('');
+}
+
+// ═══ CALENDAR ═══
+function renderCalendar() {
+  const y = calDate.getFullYear(), m = calDate.getMonth();
+  document.getElementById('cal-title').textContent = calDate.toLocaleString('default',{month:'long',year:'numeric'});
+  const first = new Date(y, m, 1).getDay();
+  const days = new Date(y, m+1, 0).getDate();
+  const today = new Date();
+
+  // Collect all trip dates
+  const tripDates = {};
+  data.trips.forEach(t => {
+    if (t.startDate && t.endDate) {
+      let d = new Date(t.startDate);
+      const end = new Date(t.endDate);
+      while (d <= end) {
+        const k = d.toISOString().slice(0,10);
+        if (!tripDates[k]) tripDates[k] = [];
+        tripDates[k].push(t);
+        d.setDate(d.getDate()+1);
+      }
+    }
+    (t.events||[]).forEach(ev => {
+      if (ev.date) { if(!tripDates[ev.date]) tripDates[ev.date]=[]; tripDates[ev.date].push(t); }
+    });
+  });
+
+  let html = '';
+  for (let i = 0; i < first; i++) html += '<div class="cal-day"></div>';
+  for (let d = 1; d <= days; d++) {
+    const date = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = today.getDate()===d && today.getMonth()===m && today.getFullYear()===y;
+    const hasTr = tripDates[date];
+    html += `<div class="cal-day ${isToday?'today':''}" onclick="calDayClick('${date}')">${d}${hasTr?'<span class="dot"></span>':''}</div>`;
+  }
+  document.getElementById('cal-body').innerHTML = html;
+
+  // Show today's or selected events
+  const todayKey = today.toISOString().slice(0,10);
+  renderCalEvents(todayKey, tripDates);
+}
+
+function renderCalEvents(date, tripDates) {
+  const el = document.getElementById('cal-events');
+  const trips = tripDates ? (tripDates[date]||[]) : [];
+  // Deduplicate
+  const seen = new Set();
+  const unique = trips.filter(t => { if(seen.has(t.id)) return false; seen.add(t.id); return true; });
+
+  if (!unique.length) { el.innerHTML = `<p class="text-muted" style="padding:16px;font-size:13px">No events on ${fmtDate(date)}</p>`; return; }
+
+  el.innerHTML = `<div class="section-title" style="padding:0 16px;margin-top:12px">${fmtDate(date)}</div>` +
+    unique.map(t => `<div class="trip-card ${t.type||'local'}" style="margin:8px 16px" onclick="openTripDetail('${t.id}')">
+      <h3>${esc(t.name)}</h3>
+      <div class="meta">${esc(t.destination||'')} · ${fmtDate(t.startDate)}–${fmtDate(t.endDate)}</div>
+    </div>`).join('');
+}
+
+function calNav(dir) {
+  calDate.setMonth(calDate.getMonth() + dir);
+  renderCalendar();
+}
+
+function calDayClick(date) {
+  // Rebuild tripDates for current month
+  const tripDates = {};
+  data.trips.forEach(t => {
+    if (t.startDate && t.endDate) {
+      let d = new Date(t.startDate);
+      const end = new Date(t.endDate);
+      while (d <= end) {
+        const k = d.toISOString().slice(0,10);
+        if (!tripDates[k]) tripDates[k] = [];
+        tripDates[k].push(t);
+        d.setDate(d.getDate()+1);
+      }
+    }
+    (t.events||[]).forEach(ev => {
+      if (ev.date) { if(!tripDates[ev.date]) tripDates[ev.date]=[]; tripDates[ev.date].push(t); }
+    });
+  });
+  renderCalEvents(date, tripDates);
+}
+
+// ═══ SEARCH ═══
+function doSearch(q) {
+  const el = document.getElementById('search-results');
+  if (!q.trim()) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Search anything</div><div class="empty-sub">Trips, destinations, events, documents…</div></div>`; return; }
+  const results = [];
+  const ql = q.toLowerCase();
+  data.trips.forEach(t => {
+    if (t.name?.toLowerCase().includes(ql) || t.destination?.toLowerCase().includes(ql) || t.notes?.toLowerCase().includes(ql)) {
+      results.push({ tag: 'Trip', title: t.name, sub: t.destination, id: t.id });
+    }
+    (t.events||[]).forEach(ev => {
+      if (ev.title?.toLowerCase().includes(ql) || ev.location?.toLowerCase().includes(ql) || ev.notes?.toLowerCase().includes(ql)) {
+        results.push({ tag: 'Event', title: ev.title, sub: `${t.name} · ${fmtDate(ev.date)}`, id: t.id });
+      }
+    });
+    (t.documents||[]).forEach(d => {
+      if (d.name?.toLowerCase().includes(ql)) {
+        results.push({ tag: 'Document', title: d.name, sub: t.name, id: t.id });
+      }
+    });
+  });
+
+  if (!results.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">😶</div><div class="empty-title">No results</div><div class="empty-sub">Try a different search term</div></div>`; return; }
+  el.innerHTML = results.map(r => `<div class="search-result" onclick="openTripDetail('${r.id}')">
+    <span class="search-tag">${r.tag}</span>
+    <h4>${esc(r.title||'')}</h4>
+    <p>${esc(r.sub||'')}</p>
+  </div>`).join('');
+}
+
+// ═══ EXPORT TRIP ═══
+function exportTrip(id) {
+  const trip = data.trips.find(t => t.id === id);
+  if (!trip) return;
+  const canvas = document.getElementById('export-canvas');
+  canvas.width = 600; canvas.height = 900;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#0f1923';
+  ctx.fillRect(0, 0, 600, 900);
+
+  // Header gradient
+  const grad = ctx.createLinearGradient(0,0,600,200);
+  grad.addColorStop(0,'#1a3a5c');
+  grad.addColorStop(1,'#0f1923');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 600, 200);
+
+  // Title
+  ctx.fillStyle = '#3b9eff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('TRIPLOG', 40, 50);
+  ctx.fillStyle = '#e8f0fe';
+  ctx.font = 'bold 32px serif';
+  ctx.fillText(trip.name, 40, 90);
+  ctx.fillStyle = '#8ba4c0';
+  ctx.font = '16px sans-serif';
+  ctx.fillText((trip.destination||'') + '  ·  ' + (trip.startDate||'') + ' – ' + (trip.endDate||''), 40, 120);
+
+  // Budget
+  ctx.fillStyle = '#3b9eff';
+  ctx.font = 'bold 28px sans-serif';
+  const total = (trip.expenses||[]).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  ctx.fillText((trip.currency||settings.currency) + ' ' + total.toLocaleString(), 40, 160);
+  ctx.fillStyle = '#8ba4c0';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('total spent', 40, 180);
+
+  // Events
+  ctx.fillStyle = '#e8f0fe';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.fillText('ITINERARY', 40, 230);
+  let y = 255;
+  (trip.events||[]).slice(0,15).forEach(ev => {
+    ctx.fillStyle = '#2a3f57';
+    ctx.fillRect(32, y-16, 536, 44);
+    ctx.fillStyle = '#8ba4c0';
+    ctx.font = '11px sans-serif';
+    ctx.fillText((ev.date||'') + (ev.time?' '+ev.time:''), 48, y);
+    ctx.fillStyle = '#e8f0fe';
+    ctx.font = '14px sans-serif';
+    ctx.fillText((EVENT_ICONS[ev.type]||'') + ' ' + (ev.title||''), 48, y+18);
+    y += 56;
+    if (y > 840) return;
+  });
+
+  ctx.fillStyle = '#4d6a84';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Generated by Triplog', 40, 880);
+
+  const link = document.createElement('a');
+  link.download = 'triplog-' + (trip.name||'trip').replace(/\s+/g,'-') + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  toast('Trip exported as PNG', 'success');
+}
+
+// ═══ DATA MANAGEMENT ═══
+function exportData() {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'triplog-export.json';
+  a.click();
+  toast('Data exported', 'success');
+}
+
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!imported.trips) throw new Error('Invalid format');
+        data.trips = [...data.trips, ...imported.trips.filter(t => !data.trips.find(e=>e.id===t.id))];
+        saveLocal(); pushSync(); renderTrips();
+        toast(`Imported ${imported.trips.length} trips`, 'success');
+      } catch(err) { toast('Import failed: ' + err.message, 'error'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function clearAllData() {
+  if (!confirm('This will delete ALL local trip data. Continue?')) return;
+  data = { trips: [] };
+  saveLocal();
+  renderTrips();
+  toast('All local data cleared', 'success');
+}
+
+// ═══ UTILS ═══
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(str) {
+  if (!str) return '';
+  try {
+    const d = new Date(str + (str.length===10?'T00:00:00':''));
+    const fmt = settings.dateFormat || 'MMM D, YYYY';
+    if (fmt === 'DD/MM/YYYY') return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    if (fmt === 'MM/DD/YYYY') return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  } catch(e) { return str; }
+}
+
+function toast(msg, type='success') {
+  const container = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  const icon = type==='success'?'✓':type==='error'?'✕':'⚠';
+  t.innerHTML = `<span>${icon}</span><span>${esc(msg)}</span>`;
+  container.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 2800);
+}
+
+// ═══ PWA ═══
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'triplog-v1';
+    self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(['.']))));
+    self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('.')))));
+  `;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+
+// PWA manifest
+const manifest = {
+  name: 'Triplog', short_name: 'Triplog', start_url: '.',
+  display: 'standalone', background_color: '#0f1923', theme_color: '#0f1923',
+  icons: [{ src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%230f1923"/><text y=".9em" font-size="80" x="10">✈️</text></svg>', sizes: '192x192', type: 'image/svg+xml' }]
+};
+const ml = document.createElement('link');
+ml.rel = 'manifest';
+ml.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+document.head.appendChild(ml);
+
+// Start
+init();
+</script>
+</body>
+</html>
